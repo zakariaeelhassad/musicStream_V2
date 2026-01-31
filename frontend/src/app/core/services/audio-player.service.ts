@@ -1,85 +1,116 @@
-import { Injectable, inject } from '@angular/core';
-import { Store } from '@ngrx/store';
-import { BehaviorSubject, fromEvent, interval } from 'rxjs';
-import { takeWhile, tap } from 'rxjs/operators';
+import { Injectable, signal, computed, effect } from '@angular/core';
 import { Track } from '../models/track.model';
-import { TrackApiService } from './track-api.service';
-import { PlayerActions } from '../../store/player/player.actions';
+
+export interface PlayerState {
+    currentTrack: Track | null;
+    isPlaying: boolean;
+    currentTime: number;
+    duration: number;
+    volume: number;
+    playlist: Track[];
+    currentIndex: number;
+}
 
 @Injectable({
     providedIn: 'root'
 })
 export class AudioPlayerService {
-    private store = inject(Store);
-    private trackApi = inject(TrackApiService);
     private audio: HTMLAudioElement | null = null;
-    private currentTrack$ = new BehaviorSubject<Track | null>(null);
+
+    // Signals for reactive state management
+    private state = signal<PlayerState>({
+        currentTrack: null,
+        isPlaying: false,
+        currentTime: 0,
+        duration: 0,
+        volume: 0.7,
+        playlist: [],
+        currentIndex: -1
+    });
+
+    // Computed values
+    currentTrack = computed(() => this.state().currentTrack);
+    isPlaying = computed(() => this.state().isPlaying);
+    currentTime = computed(() => this.state().currentTime);
+    duration = computed(() => this.state().duration);
+    volume = computed(() => this.state().volume);
+    progress = computed(() => {
+        const duration = this.state().duration;
+        return duration > 0 ? (this.state().currentTime / duration) * 100 : 0;
+    });
+    hasNext = computed(() => {
+        const { playlist, currentIndex } = this.state();
+        return currentIndex < playlist.length - 1;
+    });
+    hasPrevious = computed(() => this.state().currentIndex > 0);
 
     constructor() {
-        this.initializeAudio();
-    }
-
-    private initializeAudio(): void {
+        // Initialize audio element
         this.audio = new Audio();
-        this.audio.volume = 0.7;
+        this.audio.volume = this.state().volume;
 
-        // Listen to audio events
-        fromEvent(this.audio, 'loadedmetadata').subscribe(() => {
-            if (this.audio) {
-                this.store.dispatch(PlayerActions.setDuration({
-                    duration: this.audio.duration
-                }));
-            }
-        });
-
-        fromEvent(this.audio, 'timeupdate').subscribe(() => {
-            if (this.audio) {
-                this.store.dispatch(PlayerActions.updateCurrentTime({
-                    currentTime: this.audio.currentTime
-                }));
-            }
-        });
-
-        fromEvent(this.audio, 'ended').subscribe(() => {
-            this.store.dispatch(PlayerActions.stop());
-            this.store.dispatch(PlayerActions.nextTrack());
-        });
-
-        fromEvent(this.audio, 'error').subscribe((error) => {
-            console.error('Audio playback error:', error);
-            this.store.dispatch(PlayerActions.stop());
-        });
+        // Set up event listeners
+        this.setupAudioListeners();
     }
 
-    playTrack(track: Track): void {
+    private setupAudioListeners(): void {
         if (!this.audio) return;
 
-        const streamUrl = this.trackApi.getStreamUrl(track.id);
-        this.audio.src = streamUrl;
-        this.audio.load();
+        this.audio.addEventListener('timeupdate', () => {
+            this.state.update(s => ({ ...s, currentTime: this.audio?.currentTime || 0 }));
+        });
 
-        this.audio.play().then(() => {
-            this.currentTrack$.next(track);
-            this.store.dispatch(PlayerActions.playTrack({ track }));
-        }).catch(error => {
-            console.error('Failed to play track:', error);
+        this.audio.addEventListener('durationchange', () => {
+            this.state.update(s => ({ ...s, duration: this.audio?.duration || 0 }));
+        });
+
+        this.audio.addEventListener('ended', () => {
+            if (this.hasNext()) {
+                this.next();
+            } else {
+                this.stop();
+            }
+        });
+
+        this.audio.addEventListener('play', () => {
+            this.state.update(s => ({ ...s, isPlaying: true }));
+        });
+
+        this.audio.addEventListener('pause', () => {
+            this.state.update(s => ({ ...s, isPlaying: false }));
         });
     }
 
-    pause(): void {
-        if (this.audio && !this.audio.paused) {
-            this.audio.pause();
-            this.store.dispatch(PlayerActions.pause());
+    loadTrack(track: Track, playlist: Track[] = []): void {
+        if (!this.audio) return;
+
+        const currentIndex = playlist.length > 0 ? playlist.findIndex(t => t.id === track.id) : 0;
+
+        this.state.update(s => ({
+            ...s,
+            currentTrack: track,
+            playlist: playlist.length > 0 ? playlist : [track],
+            currentIndex: currentIndex >= 0 ? currentIndex : 0,
+            currentTime: 0
+        }));
+
+        if (track.fileUrl) {
+            this.audio.src = track.fileUrl;
+            this.audio.load();
         }
     }
 
-    resume(): void {
-        if (this.audio && this.audio.paused) {
-            this.audio.play().then(() => {
-                this.store.dispatch(PlayerActions.resume());
-            }).catch(error => {
-                console.error('Failed to resume playback:', error);
+    play(): void {
+        if (this.audio && this.state().currentTrack) {
+            this.audio.play().catch(error => {
+                console.error('Error playing audio:', error);
             });
+        }
+    }
+
+    pause(): void {
+        if (this.audio) {
+            this.audio.pause();
         }
     }
 
@@ -87,26 +118,61 @@ export class AudioPlayerService {
         if (this.audio) {
             this.audio.pause();
             this.audio.currentTime = 0;
-            this.store.dispatch(PlayerActions.stop());
+            this.state.update(s => ({ ...s, isPlaying: false, currentTime: 0 }));
+        }
+    }
+
+    togglePlayPause(): void {
+        if (this.state().isPlaying) {
+            this.pause();
+        } else {
+            this.play();
+        }
+    }
+
+    seek(time: number): void {
+        if (this.audio) {
+            this.audio.currentTime = time;
+        }
+    }
+
+    seekToPercent(percent: number): void {
+        const duration = this.state().duration;
+        if (duration > 0) {
+            this.seek((percent / 100) * duration);
         }
     }
 
     setVolume(volume: number): void {
+        const clampedVolume = Math.max(0, Math.min(1, volume));
         if (this.audio) {
-            this.audio.volume = Math.max(0, Math.min(1, volume));
-            this.store.dispatch(PlayerActions.setVolume({ volume }));
+            this.audio.volume = clampedVolume;
+        }
+        this.state.update(s => ({ ...s, volume: clampedVolume }));
+    }
+
+    next(): void {
+        const { playlist, currentIndex } = this.state();
+        if (currentIndex < playlist.length - 1) {
+            const nextTrack = playlist[currentIndex + 1];
+            this.loadTrack(nextTrack, playlist);
+            this.play();
         }
     }
 
-    seek(progress: number): void {
-        if (this.audio && this.audio.duration) {
-            const time = (progress / 100) * this.audio.duration;
-            this.audio.currentTime = time;
-            this.store.dispatch(PlayerActions.setProgress({ progress }));
+    previous(): void {
+        const { playlist, currentIndex } = this.state();
+        if (currentIndex > 0) {
+            const prevTrack = playlist[currentIndex - 1];
+            this.loadTrack(prevTrack, playlist);
+            this.play();
         }
     }
 
-    getCurrentTrack() {
-        return this.currentTrack$.asObservable();
+    formatTime(seconds: number): string {
+        if (!isFinite(seconds)) return '0:00';
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
     }
 }

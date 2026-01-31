@@ -1,0 +1,61 @@
+<div class="audio-player" *ngIf="playerService.currentTrack()" [@slideUp]>
+    <div class="player-container">
+        <div class="track-info-section">
+            <div class="now-playing-label">Now Playing</div>
+            <div class="track-details">
+                <h4 class="track-title">{{ playerService.currentTrack()?.title }}</h4>
+                <p class="track-artist">{{ playerService.currentTrack()?.artist }}</p>
+            </div>
+        </div>
+
+        <div class="player-controls-section">
+            <div class="controls">
+                <button class="control-btn" (click)="playerService.previous()" [disabled]="!playerService.hasPrevious()"
+                    title="Previous track">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="19 20 9 12 19 4 19 20"></polygon>
+                        <line x1="5" y1="19" x2="5" y2="5"></line>
+                    </svg>
+                </button>
+
+                <button class="control-btn play-btn" (click)="playerService.togglePlayPause()"
+                    title="{{ playerService.isPlaying() ? 'Pause' : 'Play' }}">
+                    <svg *ngIf="!playerService.isPlaying()" width="24" height="24" viewBox="0 0 24 24"
+                        fill="currentColor">
+                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                    <svg *ngIf="playerService.isPlaying()" width="24" height="24" viewBox="0 0 24 24"
+                        fill="currentColor">
+                        <rect x="6" y="4" width="4" height="16"></rect>
+                        <rect x="14" y="4" width="4" height="16"></rect>
+                    </svg>
+                </button>
+
+                <button class="control-btn" (click)="playerService.next()" [disabled]="!playerService.hasNext()"
+                    title="Next track">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="5 4 15 12 5 20 5 4"></polygon>
+                        <line x1="19" y1="5" x2="19" y2="19"></line>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="progress-section">
+                <span class="time">{{ playerService.formatTime(playerService.currentTime()) }}</span>
+                <div class="progress-bar" (click)="onProgressClick($event)">
+                    <div class="progress-fill" [style.width.%]="playerService.progress()"></div>
+                </div>
+                <span class="time">{{ playerService.formatTime(playerService.duration()) }}</span>
+            </div>
+        </div>
+
+        <div class="volume-section">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+            </svg>
+            <input type="range" min="0" max="1" step="0.01" [value]="playerService.volume()"
+                (input)="onVolumeChange($event)" class="volume-slider" />
+        </div>
+    </div>
+</div>

@@ -1,0 +1,13 @@
+<div class="modal-overlay" *ngIf="isOpen" (click)="onOverlayClick($event)" [@fadeIn]>
+    <div class="modal-content" [@slideUp]>
+        <button class="close-btn" (click)="onClose()" title="Close">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+        </button>
+
+        <app-track-form [track]="track" [isLoading]="isLoading" (submit)="onSubmit($event)"
+            (cancel)="onClose()"></app-track-form>
+    </div>
+</div>

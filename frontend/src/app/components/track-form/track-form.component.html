@@ -1,0 +1,78 @@
+<div class="track-form">
+    <h2>{{ isEditMode ? 'Edit Track' : 'Add New Track' }}</h2>
+
+    <form [formGroup]="trackForm" (ngSubmit)="onSubmit()">
+        <div class="form-group">
+            <label for="title">Title *</label>
+            <input id="title" type="text" formControlName="title" placeholder="Enter track title"
+                [class.error]="title?.invalid && title?.touched" />
+            <div class="form-error" *ngIf="title?.invalid && title?.touched">
+                <span *ngIf="title?.errors?.['required']">Title is required</span>
+                <span *ngIf="title?.errors?.['maxlength']">Title must be less than 50 characters</span>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="artist">Artist *</label>
+            <input id="artist" type="text" formControlName="artist" placeholder="Enter artist name"
+                [class.error]="artist?.invalid && artist?.touched" />
+            <div class="form-error" *ngIf="artist?.invalid && artist?.touched">
+                <span *ngIf="artist?.errors?.['required']">Artist is required</span>
+                <span *ngIf="artist?.errors?.['maxlength']">Artist must be less than 50 characters</span>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="category">Category *</label>
+            <select id="category" formControlName="category">
+                <option *ngFor="let cat of categories" [value]="cat">{{ cat }}</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="description">Description</label>
+            <textarea id="description" formControlName="description" placeholder="Enter track description (optional)"
+                rows="3" [class.error]="description?.invalid && description?.touched"></textarea>
+            <div class="form-error" *ngIf="description?.invalid && description?.touched">
+                <span *ngIf="description?.errors?.['maxlength']">Description must be less than 200 characters</span>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="audioFile">Audio File {{ isEditMode ? '(optional - leave empty to keep current)' : '' }}</label>
+            <div class="file-input-wrapper">
+                <input id="audioFile" type="file" accept="audio/*" (change)="onFileSelected($event)"
+                    class="file-input" />
+                <label for="audioFile" class="file-label">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                    <span>{{ fileName || 'Choose audio file' }}</span>
+                </label>
+            </div>
+            <p class="file-hint" *ngIf="!isEditMode">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                </svg>
+                You can add the audio file now or upload it later
+            </p>
+        </div>
+
+        <div class="form-actions">
+            <button type="button" class="btn btn-secondary" (click)="onCancel()" [disabled]="isLoading">
+                Cancel
+            </button>
+            <button type="submit" class="btn btn-primary" [disabled]="trackForm.invalid || isLoading">
+                <span *ngIf="!isLoading">{{ isEditMode ? 'Update Track' : 'Create Track' }}</span>
+                <span *ngIf="isLoading" class="loading-state">
+                    <span class="loading"></span>
+                    {{ isEditMode ? 'Updating...' : 'Creating...' }}
+                </span>
+            </button>
+        </div>
+    </form>
+</div>
