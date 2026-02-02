@@ -8,7 +8,7 @@ import { Track, TrackCreateDTO, TrackUpdateDTO } from '../../core/models/track.m
     standalone: true,
     imports: [CommonModule, TrackFormComponent],
     templateUrl: './track-dialog.component.html',
-    styleUrls: ['./track-dialog.component.css']
+    styleUrls: []
 })
 export class TrackDialogComponent {
     @Input() track?: Track;
@@ -26,7 +26,7 @@ export class TrackDialogComponent {
         this.close.emit();
     }
 
-    onOverlayClick(event: MouseEvent): void {
+    onBackdropClick(event: MouseEvent): void {
         if (event.target === event.currentTarget) {
             this.onClose();
         }
