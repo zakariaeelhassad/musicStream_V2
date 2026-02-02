@@ -1,24 +1,18 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { AudioPlayerComponent } from './components/audio-player/audio-player.component';
+import { AudioPlayerService } from './core/services/audio-player.service';
 
 @Component({
-    selector: 'app-root',
-    standalone: true,
-    imports: [RouterOutlet, AudioPlayerComponent],
-    template: `
-    <div class="app-container">
-      <router-outlet></router-outlet>
-      <app-audio-player></app-audio-player>
-    </div>
-  `,
-    styles: [`
-    .app-container {
-      min-height: 100vh;
-      padding-bottom: 80px;
-    }
-  `]
+  selector: 'app-root',
+  standalone: true,
+  imports: [RouterOutlet, AudioPlayerComponent],
+  template: `
+    <router-outlet></router-outlet>
+    <app-audio-player></app-audio-player>
+  `
 })
 export class AppComponent {
-    title = 'MusicStream';
+  // Initialize audio player service to start syncing with store
+  private audioPlayerService = inject(AudioPlayerService);
 }
