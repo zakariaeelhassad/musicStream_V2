@@ -1,50 +1,39 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { TrackService } from '../../core/services/track.service';
-import { AudioPlayerService } from '../../core/services/audio-player.service';
+import { Store } from '@ngrx/store';
+import { Observable } from 'rxjs';
 import { Track, TrackCreateDTO, TrackUpdateDTO } from '../../core/models/track.model';
 import { TrackCardComponent } from '../../components/track-card/track-card.component';
 import { TrackDialogComponent } from '../../components/track-dialog/track-dialog.component';
-import { catchError, finalize, of } from 'rxjs';
+import { TrackService } from '../../core/services/track.service';
+import * as TrackActions from '../../store/track/track.actions';
+import * as PlayerActions from '../../store/player/player.actions';
+import * as TrackSelectors from '../../store/track/track.selectors';
+import * as PlayerSelectors from '../../store/player/player.selectors';
 
 @Component({
     selector: 'app-home',
     standalone: true,
     imports: [CommonModule, TrackCardComponent, TrackDialogComponent],
     templateUrl: './home.component.html',
-    styleUrls: ['./home.component.css']
+    styleUrls: []
 })
 export class HomeComponent implements OnInit {
+    private store = inject(Store);
     private trackService = inject(TrackService);
-    private playerService = inject(AudioPlayerService);
 
-    tracks = signal<Track[]>([]);
-    isLoading = signal(false);
-    isDialogOpen = signal(false);
-    isSaving = signal(false);
-    selectedTrack = signal<Track | undefined>(undefined);
-    error = signal<string | null>(null);
+    tracks$: Observable<Track[]> = this.store.select(TrackSelectors.selectAllTracks);
+    loading$: Observable<boolean> = this.store.select(TrackSelectors.selectTrackLoading);
+    error$: Observable<string | null> = this.store.select(TrackSelectors.selectTrackError);
+    selectedTrack$: Observable<Track | null> = this.store.select(TrackSelectors.selectSelectedTrack);
+    currentTrack$: Observable<Track | null> = this.store.select(PlayerSelectors.selectCurrentTrack);
+    isPlaying$: Observable<boolean> = this.store.select(PlayerSelectors.selectIsPlaying);
+
+    isDialogOpen = false;
+    isSaving = false;
 
     ngOnInit(): void {
-        this.loadTracks();
-    }
-
-    loadTracks(): void {
-        this.isLoading.set(true);
-        this.error.set(null);
-
-        this.trackService.getAllTracks()
-            .pipe(
-                catchError(err => {
-                    console.error('Error loading tracks:', err);
-                    this.error.set('Failed to load tracks. Please make sure the backend is running.');
-                    return of([]);
-                }),
-                finalize(() => this.isLoading.set(false))
-            )
-            .subscribe(tracks => {
-                this.tracks.set(tracks);
-            });
+        this.store.dispatch(TrackActions.loadTracks());
     }
 
     onPlayTrack(track: Track): void {
@@ -53,123 +42,85 @@ export class HomeComponent implements OnInit {
             return;
         }
 
-        // Load track with full stream URL
         const trackWithStreamUrl = {
             ...track,
             fileUrl: this.trackService.getStreamUrl(track.id)
         };
 
-        this.playerService.loadTrack(trackWithStreamUrl, this.getPlayableTracks());
-        this.playerService.play();
+        this.tracks$.subscribe(tracks => {
+            const playableTracks = tracks
+                .filter(t => t.fileUrl)
+                .map(t => ({
+                    ...t,
+                    fileUrl: this.trackService.getStreamUrl(t.id)
+                }));
+
+            this.store.dispatch(PlayerActions.loadTrack({
+                track: trackWithStreamUrl,
+                playlist: playableTracks
+            }));
+            this.store.dispatch(PlayerActions.play());
+        }).unsubscribe();
     }
 
     onEditTrack(track: Track): void {
-        this.selectedTrack.set(track);
-        this.isDialogOpen.set(true);
+        this.store.dispatch(TrackActions.selectTrack({ track }));
+        this.isDialogOpen = true;
     }
 
     onDeleteTrack(track: Track): void {
-        this.trackService.deleteTrack(track.id)
-            .pipe(
-                catchError(err => {
-                    console.error('Error deleting track:', err);
-                    alert('Failed to delete track. Please try again.');
-                    return of(null);
-                })
-            )
-            .subscribe(() => {
-                this.loadTracks();
-            });
+        this.store.dispatch(TrackActions.deleteTrack({ id: track.id }));
     }
 
     onAddTrack(): void {
-        this.selectedTrack.set(undefined);
-        this.isDialogOpen.set(true);
+        this.store.dispatch(TrackActions.selectTrack({ track: null }));
+        this.isDialogOpen = true;
     }
 
     onDialogSubmit(event: { data: TrackCreateDTO | TrackUpdateDTO, file?: File }): void {
-        this.isSaving.set(true);
+        this.isSaving = true;
 
-        const selectedTrack = this.selectedTrack();
+        this.selectedTrack$.subscribe(selectedTrack => {
+            if (selectedTrack) {
+                // Update existing track
+                this.store.dispatch(TrackActions.updateTrack({
+                    id: selectedTrack.id,
+                    track: event.data as TrackUpdateDTO
+                }));
 
-        if (selectedTrack) {
-            // Update existing track
-            this.trackService.updateTrack(selectedTrack.id, event.data as TrackUpdateDTO)
-                .pipe(
-                    catchError(err => {
-                        console.error('Error updating track:', err);
-                        alert('Failed to update track. Please try again.');
-                        this.isSaving.set(false);
-                        return of(null);
-                    })
-                )
-                .subscribe(updatedTrack => {
-                    if (updatedTrack && event.file) {
-                        // Upload audio file if provided
-                        this.uploadAudioFile(updatedTrack.id, event.file);
-                    } else {
-                        this.isSaving.set(false);
-                        this.isDialogOpen.set(false);
-                        this.loadTracks();
-                    }
-                });
-        } else {
-            // Create new track
-            this.trackService.createTrack(event.data as TrackCreateDTO)
-                .pipe(
-                    catchError(err => {
-                        console.error('Error creating track:', err);
-                        alert('Failed to create track. Please try again.');
-                        this.isSaving.set(false);
-                        return of(null);
-                    })
-                )
-                .subscribe(newTrack => {
-                    if (newTrack && event.file) {
-                        // Upload audio file if provided
-                        this.uploadAudioFile(newTrack.id, event.file);
-                    } else {
-                        this.isSaving.set(false);
-                        this.isDialogOpen.set(false);
-                        this.loadTracks();
-                    }
-                });
-        }
-    }
+                if (event.file) {
+                    this.store.dispatch(TrackActions.uploadAudio({
+                        id: selectedTrack.id,
+                        file: event.file
+                    }));
+                }
+            } else {
+                // Create new track
+                if (event.file) {
+                    // Create track with file - will upload automatically
+                    this.store.dispatch(TrackActions.createTrackWithFile({
+                        track: event.data as TrackCreateDTO,
+                        file: event.file
+                    }));
+                } else {
+                    // Create track without file
+                    this.store.dispatch(TrackActions.createTrack({
+                        track: event.data as TrackCreateDTO
+                    }));
+                }
+            }
 
-    private uploadAudioFile(trackId: number, file: File): void {
-        this.trackService.uploadAudio(trackId, file)
-            .pipe(
-                catchError(err => {
-                    console.error('Error uploading audio:', err);
-                    alert('Track saved, but failed to upload audio file. You can try uploading it again later.');
-                    return of(null);
-                }),
-                finalize(() => {
-                    this.isSaving.set(false);
-                    this.isDialogOpen.set(false);
-                    this.loadTracks();
-                })
-            )
-            .subscribe();
+            this.isSaving = false;
+            this.isDialogOpen = false;
+        }).unsubscribe();
     }
 
     onDialogClose(): void {
-        this.isDialogOpen.set(false);
-        this.selectedTrack.set(undefined);
+        this.isDialogOpen = false;
+        this.store.dispatch(TrackActions.selectTrack({ track: null }));
     }
 
-    isTrackPlaying(track: Track): boolean {
-        const currentTrack = this.playerService.currentTrack();
-        return currentTrack?.id === track.id && this.playerService.isPlaying();
-    }
-
-    private getPlayableTracks(): Track[] {
-        return this.tracks()
-            .filter(t => t.fileUrl)
-            .map(t => ({
-                ...t,
-                fileUrl: this.trackService.getStreamUrl(t.id)
-            }));
+    isTrackPlaying(track: Track, currentTrack: Track | null, isPlaying: boolean): boolean {
+        return currentTrack?.id === track.id && isPlaying;
     }
 }

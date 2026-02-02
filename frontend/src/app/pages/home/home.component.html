@@ -1,22 +1,24 @@
-<div class="home-page">
-    <div class="container">
+<div class="min-h-screen pb-20">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <!-- Header -->
-        <header class="page-header">
-            <div class="header-content">
-                <h1 class="gradient-text">MusicStream</h1>
-                <p class="subtitle">Your personal music collection</p>
-            </div>
+        <header class="py-12 text-center">
+            <h1 class="text-5xl md:text-6xl font-bold mb-3 gradient-text animate-fade-in">
+                MusicStream
+            </h1>
+            <p class="text-lg text-slate-400 animate-fade-in">Your personal music collection</p>
         </header>
 
         <!-- Error Message -->
-        <div class="error-banner" *ngIf="error()">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <div *ngIf="error$ | async as error"
+            class="flex items-center gap-4 p-4 mb-6 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 animate-fade-in">
+            <svg class="flex-shrink-0" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2">
                 <circle cx="12" cy="12" r="10"></circle>
                 <line x1="12" y1="8" x2="12" y2="12"></line>
                 <line x1="12" y1="16" x2="12.01" y2="16"></line>
             </svg>
-            <span>{{ error() }}</span>
-            <button class="btn-icon" (click)="loadTracks()" title="Retry">
+            <span class="flex-1">{{ error }}</span>
+            <button class="btn-icon" (click)="ngOnInit()" title="Retry">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polyline points="23 4 23 10 17 10"></polyline>
                     <polyline points="1 20 1 14 7 14"></polyline>
@@ -26,46 +28,55 @@
         </div>
 
         <!-- Loading State -->
-        <div class="loading-container" *ngIf="isLoading()">
-            <div class="loading-spinner"></div>
-            <p>Loading tracks...</p>
+        <div *ngIf="loading$ | async" class="flex flex-col items-center justify-center py-20 gap-6">
+            <div class="w-12 h-12 border-4 border-slate-700 border-t-primary rounded-full animate-spin-slow"></div>
+            <p class="text-slate-400 text-sm">Loading tracks...</p>
         </div>
 
         <!-- Empty State -->
-        <div class="empty-state" *ngIf="!isLoading() && tracks().length === 0 && !error()">
-            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M9 18V5l12-2v13"></path>
-                <circle cx="6" cy="18" r="3"></circle>
-                <circle cx="18" cy="16" r="3"></circle>
-            </svg>
-            <h2>No tracks yet</h2>
-            <p>Start building your music collection by adding your first track</p>
-            <button class="btn btn-primary" (click)="onAddTrack()">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <ng-container *ngIf="tracks$ | async as tracks">
+            <div *ngIf="!(loading$ | async) && tracks.length === 0 && !(error$ | async)"
+                class="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
+                <svg class="text-slate-600 opacity-50 mb-6" width="64" height="64" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="1.5">
+                    <path d="M9 18V5l12-2v13"></path>
+                    <circle cx="6" cy="18" r="3"></circle>
+                    <circle cx="18" cy="16" r="3"></circle>
+                </svg>
+                <h2 class="text-2xl font-semibold mb-2 text-slate-200">No tracks yet</h2>
+                <p class="text-slate-400 mb-8 max-w-md">Start building your music collection by adding your first track
+                </p>
+                <button class="btn btn-primary" (click)="onAddTrack()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    Add Your First Track
+                </button>
+            </div>
+
+            <!-- Tracks Grid -->
+            <div *ngIf="!(loading$ | async) && tracks.length > 0"
+                class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in">
+                <app-track-card *ngFor="let track of tracks" [track]="track"
+                    [isPlaying]="isTrackPlaying(track, (currentTrack$ | async), (isPlaying$ | async) || false)"
+                    (play)="onPlayTrack($event)" (edit)="onEditTrack($event)"
+                    (delete)="onDeleteTrack($event)"></app-track-card>
+            </div>
+
+            <!-- Floating Action Button -->
+            <button *ngIf="tracks.length > 0"
+                class="fixed bottom-24 right-6 lg:right-8 w-14 h-14 rounded-full bg-gradient-to-r from-primary to-secondary text-white flex items-center justify-center shadow-lg hover:shadow-xl hover:scale-110 active:scale-95 transition-all z-50"
+                (click)="onAddTrack()" title="Add new track">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                     <line x1="12" y1="5" x2="12" y2="19"></line>
                     <line x1="5" y1="12" x2="19" y2="12"></line>
                 </svg>
-                Add Your First Track
             </button>
-        </div>
-
-        <!-- Tracks Grid -->
-        <div class="tracks-grid" *ngIf="!isLoading() && tracks().length > 0">
-            <app-track-card *ngFor="let track of tracks()" [track]="track" [isPlaying]="isTrackPlaying(track)"
-                (play)="onPlayTrack($event)" (edit)="onEditTrack($event)"
-                (delete)="onDeleteTrack($event)"></app-track-card>
-        </div>
-
-        <!-- Floating Action Button -->
-        <button class="fab" (click)="onAddTrack()" *ngIf="tracks().length > 0" title="Add new track">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-        </button>
+        </ng-container>
 
         <!-- Track Dialog -->
-        <app-track-dialog [isOpen]="isDialogOpen()" [track]="selectedTrack()" [isLoading]="isSaving()"
+        <app-track-dialog [isOpen]="isDialogOpen" [track]="(selectedTrack$ | async) || undefined" [isLoading]="isSaving"
             (submit)="onDialogSubmit($event)" (close)="onDialogClose()"></app-track-dialog>
     </div>
 </div>
