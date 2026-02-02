@@ -8,7 +8,7 @@ import { Track, TrackCreateDTO, TrackUpdateDTO, TRACK_CATEGORIES } from '../../c
     standalone: true,
     imports: [CommonModule, ReactiveFormsModule],
     templateUrl: './track-form.component.html',
-    styleUrls: ['./track-form.component.css']
+    styleUrls: []
 })
 export class TrackFormComponent implements OnInit {
     private fb = inject(FormBuilder);
