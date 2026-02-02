@@ -20,7 +20,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/tracks")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:4200")
 public class TrackController {
 
     private final TrackService trackService;
@@ -81,13 +80,12 @@ public class TrackController {
 
         TrackResponseDTO track = trackService.getTrackById(id);
 
-        if (track.fileUrl() == null || track.fileUrl().isEmpty()) {
+        if (track.filePath() == null || track.filePath().isEmpty()) {
             return ResponseEntity.notFound().build();
         }
 
-        // Extract filename from fileUrl or use filePath
-        String fileName = track.fileUrl().substring(track.fileUrl().lastIndexOf('/') + 1);
-        File file = new File(UPLOAD_DIR + fileName);
+        // Use filePath directly from the track
+        File file = new File(UPLOAD_DIR + track.filePath());
 
         if (!file.exists()) {
             return ResponseEntity.notFound().build();
