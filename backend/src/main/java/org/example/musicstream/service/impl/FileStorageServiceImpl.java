@@ -75,26 +75,32 @@ public class FileStorageServiceImpl implements FileStorageService {
 
     @Override
     public Long getAudioDuration(MultipartFile file) throws IOException {
-        try (InputStream inputStream = file.getInputStream()) {
-            BodyContentHandler handler = new BodyContentHandler();
-            Metadata metadata = new Metadata();
-            Parser parser = new Mp3Parser();
-            ParseContext parseContext = new ParseContext();
+        // For now, return 0 and let the frontend calculate duration from the audio
+        // element
+        // This prevents potential Tika parsing errors from blocking file uploads
+        log.info("Audio duration will be calculated on the frontend");
+        return 0L;
 
-            parser.parse(inputStream, handler, metadata, parseContext);
-
-            String duration = metadata.get("xmpDM:duration");
-            if (duration != null) {
-                // Duration is in milliseconds, convert to seconds
-                return (long) (Double.parseDouble(duration) / 1000);
-            }
-
-            log.warn("Could not extract duration from audio file");
-            return 0L;
-        } catch (Exception e) {
-            log.error("Error extracting audio duration: {}", e.getMessage());
-            return 0L;
-        }
+        /*
+         * TODO: Implement proper duration extraction with Tika
+         * try (InputStream inputStream = file.getInputStream()) {
+         * BodyContentHandler handler = new BodyContentHandler();
+         * Metadata metadata = new Metadata();
+         * Parser parser = new Mp3Parser();
+         * ParseContext parseContext = new ParseContext();
+         * 
+         * parser.parse(inputStream, handler, metadata, parseContext);
+         * 
+         * String duration = metadata.get("xmpDM:duration");
+         * if (duration != null) {
+         * return (long) (Double.parseDouble(duration) / 1000);
+         * }
+         * return 0L;
+         * } catch (Exception e) {
+         * log.error("Error extracting audio duration: {}", e.getMessage());
+         * return 0L;
+         * }
+         */
     }
 
     @Override
