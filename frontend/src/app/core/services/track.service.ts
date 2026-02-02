@@ -38,6 +38,6 @@ export class TrackService {
     }
 
     getStreamUrl(id: number): string {
-        return `${this.apiUrl}/${id}/stream`;
+        return `http://localhost:8080/api/tracks/${id}/stream`;
     }
 }
