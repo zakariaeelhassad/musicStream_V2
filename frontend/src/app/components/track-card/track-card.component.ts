@@ -7,7 +7,7 @@ import { Track } from '../../core/models/track.model';
     standalone: true,
     imports: [CommonModule],
     templateUrl: './track-card.component.html',
-    styleUrls: ['./track-card.component.css']
+    styleUrls: []
 })
 export class TrackCardComponent {
     @Input() track!: Track;
