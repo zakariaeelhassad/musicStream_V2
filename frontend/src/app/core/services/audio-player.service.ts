@@ -1,178 +1,104 @@
-import { Injectable, signal, computed, effect } from '@angular/core';
-import { Track } from '../models/track.model';
+import { Injectable, inject } from '@angular/core';
+import { Store } from '@ngrx/store';
+import { filter, take } from 'rxjs/operators';
+import * as PlayerActions from '../../store/player/player.actions';
+import * as PlayerSelectors from '../../store/player/player.selectors';
 
-export interface PlayerState {
-    currentTrack: Track | null;
-    isPlaying: boolean;
-    currentTime: number;
-    duration: number;
-    volume: number;
-    playlist: Track[];
-    currentIndex: number;
-}
-
+/**
+ * Service that bridges the HTML Audio element with NgRx store
+ * Syncs audio playback state with the store
+ */
 @Injectable({
     providedIn: 'root'
 })
 export class AudioPlayerService {
+    private store = inject(Store);
     private audio: HTMLAudioElement | null = null;
-
-    // Signals for reactive state management
-    private state = signal<PlayerState>({
-        currentTrack: null,
-        isPlaying: false,
-        currentTime: 0,
-        duration: 0,
-        volume: 0.7,
-        playlist: [],
-        currentIndex: -1
-    });
-
-    // Computed values
-    currentTrack = computed(() => this.state().currentTrack);
-    isPlaying = computed(() => this.state().isPlaying);
-    currentTime = computed(() => this.state().currentTime);
-    duration = computed(() => this.state().duration);
-    volume = computed(() => this.state().volume);
-    progress = computed(() => {
-        const duration = this.state().duration;
-        return duration > 0 ? (this.state().currentTime / duration) * 100 : 0;
-    });
-    hasNext = computed(() => {
-        const { playlist, currentIndex } = this.state();
-        return currentIndex < playlist.length - 1;
-    });
-    hasPrevious = computed(() => this.state().currentIndex > 0);
+    private isUpdatingFromAudio = false; // Flag to prevent circular updates
 
     constructor() {
-        // Initialize audio element
-        this.audio = new Audio();
-        this.audio.volume = this.state().volume;
-
-        // Set up event listeners
-        this.setupAudioListeners();
+        this.initializeAudioElement();
+        this.subscribeToStoreChanges();
     }
 
-    private setupAudioListeners(): void {
-        if (!this.audio) return;
+    private initializeAudioElement(): void {
+        this.audio = new Audio();
+        this.audio.volume = 0.7;
 
+        // Listen to audio element events and update store
         this.audio.addEventListener('timeupdate', () => {
-            this.state.update(s => ({ ...s, currentTime: this.audio?.currentTime || 0 }));
-        });
-
-        this.audio.addEventListener('durationchange', () => {
-            this.state.update(s => ({ ...s, duration: this.audio?.duration || 0 }));
-        });
-
-        this.audio.addEventListener('ended', () => {
-            if (this.hasNext()) {
-                this.next();
-            } else {
-                this.stop();
+            if (this.audio && !this.isUpdatingFromAudio) {
+                this.isUpdatingFromAudio = true;
+                this.store.dispatch(PlayerActions.updateCurrentTime({ currentTime: this.audio.currentTime }));
+                this.isUpdatingFromAudio = false;
             }
         });
 
+        this.audio.addEventListener('loadedmetadata', () => {
+            if (this.audio) {
+                this.store.dispatch(PlayerActions.updateDuration({ duration: this.audio.duration }));
+            }
+        });
+
+        this.audio.addEventListener('ended', () => {
+            this.store.dispatch(PlayerActions.setPlaying({ isPlaying: false }));
+            // Auto-play next track if available
+            this.store.select(PlayerSelectors.selectHasNext).pipe(take(1)).subscribe(hasNext => {
+                if (hasNext) {
+                    this.store.dispatch(PlayerActions.next());
+                    this.store.dispatch(PlayerActions.play());
+                }
+            });
+        });
+
         this.audio.addEventListener('play', () => {
-            this.state.update(s => ({ ...s, isPlaying: true }));
+            this.store.dispatch(PlayerActions.setPlaying({ isPlaying: true }));
         });
 
         this.audio.addEventListener('pause', () => {
-            this.state.update(s => ({ ...s, isPlaying: false }));
+            this.store.dispatch(PlayerActions.setPlaying({ isPlaying: false }));
+        });
+
+        this.audio.addEventListener('error', (e) => {
+            console.error('Audio playback error:', e);
+            this.store.dispatch(PlayerActions.setPlaying({ isPlaying: false }));
         });
     }
 
-    loadTrack(track: Track, playlist: Track[] = []): void {
-        if (!this.audio) return;
-
-        const currentIndex = playlist.length > 0 ? playlist.findIndex(t => t.id === track.id) : 0;
-
-        this.state.update(s => ({
-            ...s,
-            currentTrack: track,
-            playlist: playlist.length > 0 ? playlist : [track],
-            currentIndex: currentIndex >= 0 ? currentIndex : 0,
-            currentTime: 0
-        }));
-
-        if (track.fileUrl) {
-            this.audio.src = track.fileUrl;
-            this.audio.load();
-        }
-    }
-
-    play(): void {
-        if (this.audio && this.state().currentTrack) {
-            this.audio.play().catch(error => {
-                console.error('Error playing audio:', error);
+    private subscribeToStoreChanges(): void {
+        // Subscribe to current track changes
+        this.store.select(PlayerSelectors.selectCurrentTrack)
+            .pipe(filter(track => track !== null))
+            .subscribe(track => {
+                if (this.audio && track?.fileUrl) {
+                    this.audio.src = track.fileUrl;
+                    this.audio.load();
+                }
             });
-        }
-    }
 
-    pause(): void {
-        if (this.audio) {
-            this.audio.pause();
-        }
-    }
+        // Subscribe to play/pause state
+        this.store.select(PlayerSelectors.selectIsPlaying).subscribe(isPlaying => {
+            if (this.audio) {
+                if (isPlaying && this.audio.paused) {
+                    this.audio.play().catch(err => console.error('Playback error:', err));
+                } else if (!isPlaying && !this.audio.paused) {
+                    this.audio.pause();
+                }
+            }
+        });
 
-    stop(): void {
-        if (this.audio) {
-            this.audio.pause();
-            this.audio.currentTime = 0;
-            this.state.update(s => ({ ...s, isPlaying: false, currentTime: 0 }));
-        }
-    }
+        // Subscribe to volume changes
+        this.store.select(PlayerSelectors.selectVolume).subscribe(volume => {
+            if (this.audio) {
+                this.audio.volume = volume;
+            }
+        });
 
-    togglePlayPause(): void {
-        if (this.state().isPlaying) {
-            this.pause();
-        } else {
-            this.play();
-        }
-    }
-
-    seek(time: number): void {
-        if (this.audio) {
-            this.audio.currentTime = time;
-        }
-    }
-
-    seekToPercent(percent: number): void {
-        const duration = this.state().duration;
-        if (duration > 0) {
-            this.seek((percent / 100) * duration);
-        }
-    }
-
-    setVolume(volume: number): void {
-        const clampedVolume = Math.max(0, Math.min(1, volume));
-        if (this.audio) {
-            this.audio.volume = clampedVolume;
-        }
-        this.state.update(s => ({ ...s, volume: clampedVolume }));
-    }
-
-    next(): void {
-        const { playlist, currentIndex } = this.state();
-        if (currentIndex < playlist.length - 1) {
-            const nextTrack = playlist[currentIndex + 1];
-            this.loadTrack(nextTrack, playlist);
-            this.play();
-        }
-    }
-
-    previous(): void {
-        const { playlist, currentIndex } = this.state();
-        if (currentIndex > 0) {
-            const prevTrack = playlist[currentIndex - 1];
-            this.loadTrack(prevTrack, playlist);
-            this.play();
-        }
-    }
-
-    formatTime(seconds: number): string {
-        if (!isFinite(seconds)) return '0:00';
-        const mins = Math.floor(seconds / 60);
-        const secs = Math.floor(seconds % 60);
-        return `${mins}:${secs.toString().padStart(2, '0')}`;
+        // Subscribe to seek actions (only when user seeks, not continuous updates)
+        this.store.select(PlayerSelectors.selectCurrentTime).subscribe(time => {
+            if (this.audio && !this.isUpdatingFromAudio && Math.abs(this.audio.currentTime - time) > 1) {
+                this.audio.currentTime = time;
+            }
+        });
     }
 }
