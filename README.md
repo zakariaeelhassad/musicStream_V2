@@ -328,21 +328,8 @@ The project uses GitHub Actions for continuous integration and deployment.
 - `remove: deprecated code`
 - `refactor: code restructuring`
 
-## 📄 License
+## 🔄 Diagramme De Class
 
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🙏 Acknowledgments
-
-- Angular Team for the amazing framework
-- Spring Boot Team for the robust backend framework
-- Tailwind CSS for the utility-first CSS framework
-- All contributors who have helped shape this project
-
-## 📞 Support
-
-For support, email support@musicstream.com or open an issue in the GitHub repository.
-
----
+![diagramme de class](diagramme_de_class/image)
 
 **Built with ❤️ by the MusicStream Team**
