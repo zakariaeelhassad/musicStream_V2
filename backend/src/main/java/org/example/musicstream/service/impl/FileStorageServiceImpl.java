@@ -25,7 +25,7 @@ import java.util.UUID;
 @Slf4j
 public class FileStorageServiceImpl implements FileStorageService {
 
-    private static final long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+    private static final long MAX_FILE_SIZE = 10 * 1024 * 1024;
     private static final Set<String> ALLOWED_MIME_TYPES = Set.of(
             "audio/mpeg",
             "audio/mp3",
@@ -41,18 +41,15 @@ public class FileStorageServiceImpl implements FileStorageService {
     public String storeFile(MultipartFile file, Long trackId) throws IOException {
         validateAudioFile(file);
 
-        // Create upload directory if it doesn't exist
         Path uploadPath = Paths.get(uploadDir);
         if (!Files.exists(uploadPath)) {
             Files.createDirectories(uploadPath);
         }
 
-        // Generate unique filename
         String originalFilename = StringUtils.cleanPath(file.getOriginalFilename());
         String fileExtension = getFileExtension(originalFilename);
         String uniqueFilename = trackId + "_" + UUID.randomUUID().toString() + fileExtension;
 
-        // Store file
         Path targetLocation = uploadPath.resolve(uniqueFilename);
         Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
 
@@ -75,32 +72,8 @@ public class FileStorageServiceImpl implements FileStorageService {
 
     @Override
     public Long getAudioDuration(MultipartFile file) throws IOException {
-        // For now, return 0 and let the frontend calculate duration from the audio
-        // element
-        // This prevents potential Tika parsing errors from blocking file uploads
         log.info("Audio duration will be calculated on the frontend");
         return 0L;
-
-        /*
-         * TODO: Implement proper duration extraction with Tika
-         * try (InputStream inputStream = file.getInputStream()) {
-         * BodyContentHandler handler = new BodyContentHandler();
-         * Metadata metadata = new Metadata();
-         * Parser parser = new Mp3Parser();
-         * ParseContext parseContext = new ParseContext();
-         * 
-         * parser.parse(inputStream, handler, metadata, parseContext);
-         * 
-         * String duration = metadata.get("xmpDM:duration");
-         * if (duration != null) {
-         * return (long) (Double.parseDouble(duration) / 1000);
-         * }
-         * return 0L;
-         * } catch (Exception e) {
-         * log.error("Error extracting audio duration: {}", e.getMessage());
-         * return 0L;
-         * }
-         */
     }
 
     @Override
