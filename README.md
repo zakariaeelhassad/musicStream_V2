@@ -328,8 +328,8 @@ The project uses GitHub Actions for continuous integration and deployment.
 - `remove: deprecated code`
 - `refactor: code restructuring`
 
-## 🔄 Diagramme De Class
+## 📊 Diagramme De Class
 
-![diagramme de class](diagramme_de_class/image)
+![diagramme de class](diagramme_de_class/image.png)
 
 **Built with ❤️ by the MusicStream Team**
