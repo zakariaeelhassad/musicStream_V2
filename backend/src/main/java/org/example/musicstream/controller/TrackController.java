@@ -26,8 +26,6 @@ public class TrackController {
 
     private static final String UPLOAD_DIR = "uploads/";
 
-    /* ================= CRUD ================= */
-
     @PostMapping
     public ResponseEntity<TrackResponseDTO> create(
             @Valid @RequestBody TrackCreateDTO dto) {
@@ -60,8 +58,6 @@ public class TrackController {
         return ResponseEntity.noContent().build();
     }
 
-    /* ================= UPLOAD AUDIO ================= */
-
     @PostMapping("/{id}/upload")
     public ResponseEntity<TrackResponseDTO> uploadAudio(
             @PathVariable Long id,
@@ -70,8 +66,6 @@ public class TrackController {
         TrackResponseDTO updatedTrack = trackService.uploadAudioFile(id, file);
         return ResponseEntity.ok(updatedTrack);
     }
-
-    /* ================= STREAM AUDIO ================= */
 
     @GetMapping("/{id}/stream")
     public ResponseEntity<Resource> stream(
@@ -84,7 +78,6 @@ public class TrackController {
             return ResponseEntity.notFound().build();
         }
 
-        // Use filePath directly from the track
         File file = new File(UPLOAD_DIR + track.filePath());
 
         if (!file.exists()) {
