@@ -1,7 +1,6 @@
 import { createAction, props } from '@ngrx/store';
 import { Track, TrackCreateDTO, TrackUpdateDTO } from '../../core/models/track.model';
 
-// Load Tracks
 export const loadTracks = createAction('[Track] Load Tracks');
 export const loadTracksSuccess = createAction(
     '[Track] Load Tracks Success',
@@ -12,7 +11,6 @@ export const loadTracksFailure = createAction(
     props<{ error: string }>()
 );
 
-// Create Track
 export const createTrack = createAction(
     '[Track] Create Track',
     props<{ track: TrackCreateDTO }>()
@@ -30,7 +28,6 @@ export const createTrackFailure = createAction(
     props<{ error: string }>()
 );
 
-// Update Track
 export const updateTrack = createAction(
     '[Track] Update Track',
     props<{ id: number; track: TrackUpdateDTO }>()
@@ -44,7 +41,6 @@ export const updateTrackFailure = createAction(
     props<{ error: string }>()
 );
 
-// Delete Track
 export const deleteTrack = createAction(
     '[Track] Delete Track',
     props<{ id: number }>()
@@ -58,7 +54,6 @@ export const deleteTrackFailure = createAction(
     props<{ error: string }>()
 );
 
-// Upload Audio
 export const uploadAudio = createAction(
     '[Track] Upload Audio',
     props<{ id: number; file: File }>()
@@ -72,7 +67,6 @@ export const uploadAudioFailure = createAction(
     props<{ error: string }>()
 );
 
-// Select Track
 export const selectTrack = createAction(
     '[Track] Select Track',
     props<{ track: Track | null }>()
