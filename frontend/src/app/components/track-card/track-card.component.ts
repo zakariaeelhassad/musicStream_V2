@@ -11,6 +11,7 @@ import { Track } from '../../core/models/track.model';
 })
 export class TrackCardComponent {
     @Input() track!: Track;
+    @Input() currentDuration?: number;
     @Input() isPlaying = false;
 
     @Output() play = new EventEmitter<Track>();
@@ -32,7 +33,8 @@ export class TrackCardComponent {
     }
 
     formatDuration(seconds?: number): string {
-        if (!seconds || !isFinite(seconds)) return '--:--';
+        if (seconds === undefined || seconds === null || !isFinite(seconds)) return '--:--';
+        if (seconds === 0) return '0:00';
         const mins = Math.floor(seconds / 60);
         const secs = Math.floor(seconds % 60);
         return `${mins}:${secs.toString().padStart(2, '0')}`;
