@@ -130,8 +130,6 @@ The application will be available at:
 - **Backend API**: http://localhost:8080
 - **Database**: localhost:5432
 
-For detailed Docker instructions, see [DOCKER.md](DOCKER.md)
-
 ## 📁 Project Structure
 
 ```
@@ -277,8 +275,6 @@ docker-compose down
 docker-compose down -v --rmi all
 ```
 
-For complete Docker documentation, see [DOCKER.md](DOCKER.md)
-
 ## 🔄 CI/CD
 
 The project uses GitHub Actions for continuous integration and deployment.
@@ -292,8 +288,6 @@ The project uses GitHub Actions for continuous integration and deployment.
 2. **Frontend Tests**: Run Jasmine/Karma tests
 3. **Build Docker Images**: Build and tag images
 4. **Security Scan**: Scan for vulnerabilities
-
-For complete CI/CD documentation, see [CI-CD.md](CI-CD.md)
 
 ## 📚 API Documentation
 
